@@ -103,7 +103,7 @@ msn_mode_share |>
   filter(!is.na(mode_readable) & gender == "total") |> 
   group_by(mode_readable, year) |> 
   ggplot(aes(year, estimate, color = mode_readable)) +
-  geom_line(size = 1.2) +
+  geom_line(linewidth = 1.2) +
   hrbrthemes::scale_color_ipsum(
     #name = element_blank()
     ) +
@@ -209,7 +209,7 @@ combined |>
   theme(legend.position = "none") +
   facet_wrap(~location)
 ```
-
+Chart should also have US national number in it
 
 ```{r}
 get_place_mode_share <- function(year, places) {
@@ -219,10 +219,21 @@ get_place_mode_share <- function(year, places) {
     mutate(year = year)
 }
 
+national_mode_share_2022_total <- national_mode_share_2022 %>% 
+  filter(gender == "total") %>% 
+  mutate(
+    label = case_when(
+           mode_readable == "Drive" ~ "<span style='font-family:fa-solid;'>&#xf1b9;</span>",
+           mode_readable == "Transit" ~ "<span style='font-family:fa-solid;'>&#xf207;</span>",
+           mode_readable == "Walk" ~ "<span style='font-family:fa-solid;'>&#xf554;</span>",
+           mode_readable == "Bike" ~ "<span style='font-family:fa-solid;'>&#xf206;</span>",
+           mode_readable == "Work from home" ~ "<span style='font-family:fa-solid;'>&#xe066;</span>"
+  ),
+  NAME = "US")
 
-mode_share_comparison <- get_place_mode_share(2022, c("Madison city, Wisconsin", "Portland city, Oregon", "Minneapolis city, Minnesota", "San Francisco city, California", "Milwaukee city, Wisconsin"))
+mode_share_comparison <- get_place_mode_share(2022, c("Madison city, Wisconsin", "Portland city, Oregon", "Minneapolis city, Minnesota", "San Francisco city, California", "Milwaukee city, Wisconsin", "New York city, New York"))
 
-mode_share_comparison |> 
+mode_share_comparison <- mode_share_comparison |> 
   mutate(gender = case_when(str_detect(variable, "^S0801_C01") ~ "total",
                             str_detect(variable, "^S0801_C02") ~ "male",
                             str_detect(variable, "^S0801_C03") ~ "female"),
@@ -240,23 +251,28 @@ mode_share_comparison |>
            mode_readable == "Work from home" ~ "<span style='font-family:fa-solid;'>&#xe066;</span>"
          ),
          NAME = str_remove(NAME, " city")) |> 
-  mutate(NAME = fct_reorder(NAME, desc(NAME))) |> 
-    filter(!is.na(mode_readable) & gender == "total") |> View()
-  group_by(mode_readable, NAME) |> 
-  ggplot(aes(NAME, estimate, color = mode_readable, label = label)) +
+    filter(!is.na(mode_readable) & gender == "total")
+
+
+rbind(mode_share_comparison, national_mode_share_2022_total) %>% 
+  mutate(name_by_bike_share = fct_relevel(NAME, c("San Francisco, California", 
+                        "Portland, Oregon",
+                        "Madison, Wisconsin", 
+                        "Minneapolis, Minnesota", 
+                        "New York, New York",
+                        "Milwaukee, Wisconsin",
+                        "US"))) %>% 
+  group_by(mode_readable, name_by_bike_share) |> 
+  ggplot(aes(name_by_bike_share, estimate, color = mode_readable, label = label)) +
   geom_richtext(size = 8, label.colour = NA, fill = NA) +
     geom_point(size = 3, color = "darkgrey") +
-  # geom_line(aes(group = mode_readable), alpha = .2) +
-  hrbrthemes::scale_color_ipsum(
-    #name = element_blank()
-    ) +
-  # geom_crossbar(aes(ymin = estimate - moe, ymax = estimate + moe), alpha = .9, fatten = 1) +
+  hrbrthemes::scale_color_ipsum() +
   hrbrthemes::theme_ipsum() +
   # scale_x_continuous(breaks = c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022), minor_breaks = NULL, limits = c(2010, 2023.5)) +
   ylab("estimate (%)") +
   xlab(element_blank()) +
-  labs(title = "2022 Commute mode share in Madison and select US cities",
-       # subtitle ="City of Madison and US commute mode share, 2010-2022",
+  labs(title = "2022 Commute mode share",
+       subtitle = "Madison and select US cities",
        caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") +
     # ggrepel::geom_text_repel(data = combined_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) +
   theme(legend.position = "none",
@@ -277,12 +293,12 @@ msn_mode_share |>
          diff_22_21_formatted = paste0(round(diff_22_21,digits = 1), "%")) |>
   ggplot() +
     geom_segment(aes(x=mode_readable, xend=mode_readable, y=estimate_2021, yend=estimate_2022), color="grey", arrow = arrow(length = unit(2, "mm"))) +
-  geom_point(aes(x = mode_readable, y = estimate_2021), color = 2021) +
+  geom_point(aes(x = mode_readable, y = estimate_2021), color = "#d18975") +
     geom_crossbar(aes(mode_readable, estimate_2021, ymin = estimate_2021 - moe_2021, ymax = estimate_2021 + moe_2021), alpha = .9,
-                  fatten = 1, color = 2021)+
-    geom_point(aes(x = mode_readable, y = estimate_2022), color = 2022) +
+                  fatten = 1, color = "#d18975")+
+    geom_point(aes(x = mode_readable, y = estimate_2022), color = "#8fd175") +
       geom_crossbar(aes(mode_readable, estimate_2022, ymin = estimate_2022 - moe_2022, ymax = estimate_2022 + moe_2022), alpha = .9,
-                  fatten = 1, color = 2022)+
+                  fatten = 1, color = "#8fd175")+
   geom_text(aes(x = mode_readable, 
                 y = (estimate_2022 + estimate_2021)/2, 
                 label = diff_22_21_formatted),
