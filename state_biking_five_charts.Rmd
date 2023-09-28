@@ -1,0 +1,590 @@
+---
+title: "What's the latest on commute mode share in Madison?"
+description: |
+  Working from home has seen an unprecedented boom, while biking stagnates.
+author:
+  - name: Harald Kliems 
+    orcid_id: 0000-0003-2542-0047
+    url: https://haraldkliems.netlify.app/
+date: 2022-10-12
+repository_url: https://github.com/vgXhc/ACS_1y_Madison/
+compare_updates_url:
+creative_commons: CC BY-SA
+categories:
+  - Madison (WI)
+  - transportation
+  - American Community Survey
+output: 
+  distill::distill_article:
+    code_folding: TRUE
+    self_contained: false
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+One of the high holidays for census data nerds is ACSmas: The annual release of 1-year estimates from the American Community Survey. Last year's ACSmas was cancelled because of the pandemic, but this September we finally got our fix of data for 2021. 
+
+
+
+I was especially excited about the commuting data: What did the pandemic do to people's trips to work? How much of a shift to working from home would we see? And was the data quality actually going to be good enough to draw any firm conclusions? What follows is an in-depth look at the ACS commuting data for the City of Madison. 
+
+# Mode share over time
+ACS mode share data is available all the way back to 2010. In [previous posts on the Madison Bikes blog](https://www.madisonbikes.org/2020/09/biking-numbers-in-madison-not-so-great/) I had already looked at these time series data -- and frankly, it was not that exciting: By and large the percentages of different modes of getting to worked stayed the same. Biking didn't grow but neither shrunk. It seemed highly likely that the pandemic would have changed things up. And it did: 
+
+```{r, layout="l-page", fig.width=6, fig.asp = 0.618}
+library(tmap)
+library(sf)
+library(tidycensus)
+library(tidyverse)
+library(gt)
+library(ggtext)
+
+library(showtext)
+showtext_auto()
+# First argument = name in R
+# Second argument = path to .otf-file
+font_add('fa-reg', 'fonts/Font Awesome 6 Free-Regular-400.otf')
+font_add('fa-brands', 'fonts/Font Awesome 6 Brands-Regular-400.otf')
+font_add('fa-solid', 'fonts/Font Awesome 6 Free-Solid-900.otf')
+
+# variables <- load_variables(dataset = "acs1/subject", year = "2021")
+
+get_msn_mode_share <- function(year) {
+  acs_data <- get_acs(year = year, survey = "acs1", table = "S0801", geography = "place", state = 55, cache_table=T)
+  acs_data |> 
+    filter(NAME == "Madison city, Wisconsin") |> 
+    mutate(year = year)
+}
+
+
+# variable_readable = case_when(
+#   variable == "S0801_C01_002" ~ "Drive",
+#   variable == "S0801_C01_009" ~ "Transit",
+#   variable == "S0801_C01_010" ~ "Walk",
+#   variable == "S0801_C01_011" ~ "Bike",
+#   variable == "S0801_C01_013" ~ "Work from home",
+#   variable == "S0801_C02_002" ~ "Drive, male",
+#   variable == "S0801_C02_009" ~ "Transit, male",
+#   variable == "S0801_C02_010" ~ "Walk, male",
+#   variable == "S0801_C02_011" ~ "Bike, male",
+#   variable == "S0801_C02_013" ~ "Work from home, male",
+#   variable == "S0801_C03_002" ~ "Drive, female",
+#   variable == "S0801_C03_009" ~ "Transit, female",
+#   variable == "S0801_C03_010" ~ "Walk, female",
+#   variable == "S0801_C03_011" ~ "Bike, female",
+#   variable == "S0801_C03_013" ~ "Work from home, female",
+#   
+#   
+# )
+
+
+
+msn_mode_share <- map_dfr(c(2010:2019, 2021:2022), get_msn_mode_share)
+
+msn_mode_share <- msn_mode_share |> 
+  mutate(gender = case_when(str_detect(variable, "^S0801_C01") ~ "total",
+                            str_detect(variable, "^S0801_C02") ~ "male",
+                            str_detect(variable, "^S0801_C03") ~ "female"),
+         mode_readable = case_when(
+           str_detect(variable, "S0801_C0[1-3]_002") ~ "Drive",
+           str_detect(variable, "S0801_C0[1-3]_009") ~ "Transit",
+           str_detect(variable, "S0801_C0[1-3]_010") ~ "Walk",
+           str_detect(variable, "S0801_C0[1-3]_011") ~ "Bike",
+           str_detect(variable, "S0801_C0[1-3]_013") ~ "Work from home"))
+        
+# data frame for the ggrepel labels on the right of the plot
+msn_mode_share_2022 <-  msn_mode_share |> 
+  filter(year == 2022 & !is.na(mode_readable))
+
+msn_mode_share |> 
+  filter(!is.na(mode_readable) & gender == "total") |> 
+  group_by(mode_readable, year) |> 
+  ggplot(aes(year, estimate, color = mode_readable)) +
+  geom_line(size = 1.2) +
+  hrbrthemes::scale_color_ipsum(
+    #name = element_blank()
+    ) +
+  geom_crossbar(aes(ymin = estimate - moe, ymax = estimate + moe), alpha = .9,
+                  fatten = 1) +
+  hrbrthemes::theme_ipsum() +
+  scale_x_continuous(breaks = c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022), minor_breaks = NULL, limits = c(2010, 2023.5)) +
+  ylab("estimate (%)") +
+  labs(title = "Some Madisonians returned to the office in 2022,\nand they did so by car or bus",
+       subtitle ="City of Madison commute mode share, 2010-2022",
+       caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") +
+    ggrepel::geom_text_repel(data = msn_mode_share_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) +
+  theme(legend.position = "none")
+```
+
+
+```{r}
+get_national_mode_share <- function(year) {
+  acs_data <- get_acs(year = year, survey = "acs1", table = "S0801", geography = "us", cache_table=T)
+  acs_data |> 
+    mutate(year = year)
+}
+
+
+# variable_readable = case_when(
+#   variable == "S0801_C01_002" ~ "Drive",
+#   variable == "S0801_C01_009" ~ "Transit",
+#   variable == "S0801_C01_010" ~ "Walk",
+#   variable == "S0801_C01_011" ~ "Bike",
+#   variable == "S0801_C01_013" ~ "Work from home",
+#   variable == "S0801_C02_002" ~ "Drive, male",
+#   variable == "S0801_C02_009" ~ "Transit, male",
+#   variable == "S0801_C02_010" ~ "Walk, male",
+#   variable == "S0801_C02_011" ~ "Bike, male",
+#   variable == "S0801_C02_013" ~ "Work from home, male",
+#   variable == "S0801_C03_002" ~ "Drive, female",
+#   variable == "S0801_C03_009" ~ "Transit, female",
+#   variable == "S0801_C03_010" ~ "Walk, female",
+#   variable == "S0801_C03_011" ~ "Bike, female",
+#   variable == "S0801_C03_013" ~ "Work from home, female",
+#   
+#   
+# )
+
+
+
+national_mode_share <- map_dfr(c(2010:2019, 2021:2022), get_national_mode_share)
+
+national_mode_share <- national_mode_share |> 
+  mutate(gender = case_when(str_detect(variable, "^S0801_C01") ~ "total",
+                            str_detect(variable, "^S0801_C02") ~ "male",
+                            str_detect(variable, "^S0801_C03") ~ "female"),
+         mode_readable = case_when(
+           str_detect(variable, "S0801_C0[1-3]_002") ~ "Drive",
+           str_detect(variable, "S0801_C0[1-3]_009") ~ "Transit",
+           str_detect(variable, "S0801_C0[1-3]_010") ~ "Walk",
+           str_detect(variable, "S0801_C0[1-3]_011") ~ "Bike",
+           str_detect(variable, "S0801_C0[1-3]_013") ~ "Work from home"))
+        
+# data frame for the ggrepel labels on the right of the plot
+national_mode_share_2022 <-  national_mode_share |> 
+  filter(year == 2022 & !is.na(mode_readable))
+
+national_mode_share |> 
+  filter(!is.na(mode_readable) & gender == "total") |> 
+  group_by(mode_readable, year) |> 
+  ggplot(aes(year, estimate, color = mode_readable)) +
+  geom_line(size = 1.2) +
+  hrbrthemes::scale_color_ipsum(
+    #name = element_blank()
+    ) +
+  geom_crossbar(aes(ymin = estimate - moe, ymax = estimate + moe), alpha = .9,
+                  fatten = 1) +
+  hrbrthemes::theme_ipsum() +
+  scale_x_continuous(breaks = c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022), minor_breaks = NULL, limits = c(2010, 2023.5)) +
+  ylab("estimate (%)") +
+  labs(title = "Some Madisonians returned to the office in 2022,\nand they did so by car or bus",
+       subtitle ="City of Madison commute mode share, 2010-2022",
+       caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") +
+    ggrepel::geom_text_repel(data = national_mode_share_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) +
+  theme(legend.position = "none")
+
+
+combined <- rbind(national_mode_share |> mutate(location = "national"), msn_mode_share |> mutate(location = "Madison"))
+combined_2022 <- rbind(national_mode_share_2022 |> mutate(location = "national"), msn_mode_share_2022 |> mutate(location = "Madison"))
+
+combined |> 
+  filter(!is.na(mode_readable) & gender == "total") |> 
+  group_by(mode_readable, year, location) |> 
+  ggplot(aes(year, estimate, color = mode_readable)) +
+  geom_line(size = 1.2) +
+  hrbrthemes::scale_color_ipsum(
+    #name = element_blank()
+    ) +
+  # geom_crossbar(aes(ymin = estimate - moe, ymax = estimate + moe), alpha = .9, fatten = 1) +
+  hrbrthemes::theme_ipsum() +
+  scale_x_continuous(breaks = c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022), minor_breaks = NULL, limits = c(2010, 2023.5)) +
+  ylab("estimate (%)") +
+  labs(title = "Mode share trends in Madison follow\na similar pattern as the national numbers",
+       subtitle ="City of Madison and US commute mode share, 2010-2022",
+       caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") +
+    ggrepel::geom_text_repel(data = combined_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) +
+  theme(legend.position = "none") +
+  facet_wrap(~location)
+```
+
+
+```{r}
+get_place_mode_share <- function(year, places) {
+  acs_data <- get_acs(year = year, survey = "acs1", table = "S0801", geography = "place", cache_table=T)
+  acs_data |> 
+    filter(NAME %in% places) |> 
+    mutate(year = year)
+}
+
+
+mode_share_comparison <- get_place_mode_share(2022, c("Madison city, Wisconsin", "Portland city, Oregon", "Minneapolis city, Minnesota", "San Francisco city, California", "Milwaukee city, Wisconsin"))
+
+mode_share_comparison |> 
+  mutate(gender = case_when(str_detect(variable, "^S0801_C01") ~ "total",
+                            str_detect(variable, "^S0801_C02") ~ "male",
+                            str_detect(variable, "^S0801_C03") ~ "female"),
+         mode_readable = case_when(
+           str_detect(variable, "S0801_C0[1-3]_002") ~ "Drive",
+           str_detect(variable, "S0801_C0[1-3]_009") ~ "Transit",
+           str_detect(variable, "S0801_C0[1-3]_010") ~ "Walk",
+           str_detect(variable, "S0801_C0[1-3]_011") ~ "Bike",
+           str_detect(variable, "S0801_C0[1-3]_013") ~ "Work from home"),
+         label = case_when(
+           mode_readable == "Drive" ~ "<span style='font-family:fa-solid;'>&#xf1b9;</span>",
+           mode_readable == "Transit" ~ "<span style='font-family:fa-solid;'>&#xf207;</span>",
+           mode_readable == "Walk" ~ "<span style='font-family:fa-solid;'>&#xf554;</span>",
+           mode_readable == "Bike" ~ "<span style='font-family:fa-solid;'>&#xf206;</span>",
+           mode_readable == "Work from home" ~ "<span style='font-family:fa-solid;'>&#xe066;</span>"
+         ),
+         NAME = str_remove(NAME, " city")) |> 
+  mutate(NAME = fct_reorder(NAME, desc(NAME))) |> 
+    filter(!is.na(mode_readable) & gender == "total") |> View()
+  group_by(mode_readable, NAME) |> 
+  ggplot(aes(NAME, estimate, color = mode_readable, label = label)) +
+  geom_richtext(size = 8, label.colour = NA, fill = NA) +
+    geom_point(size = 3, color = "darkgrey") +
+  # geom_line(aes(group = mode_readable), alpha = .2) +
+  hrbrthemes::scale_color_ipsum(
+    #name = element_blank()
+    ) +
+  # geom_crossbar(aes(ymin = estimate - moe, ymax = estimate + moe), alpha = .9, fatten = 1) +
+  hrbrthemes::theme_ipsum() +
+  # scale_x_continuous(breaks = c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022), minor_breaks = NULL, limits = c(2010, 2023.5)) +
+  ylab("estimate (%)") +
+  xlab(element_blank()) +
+  labs(title = "2022 Commute mode share in Madison and select US cities",
+       # subtitle ="City of Madison and US commute mode share, 2010-2022",
+       caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") +
+    # ggrepel::geom_text_repel(data = combined_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) +
+  theme(legend.position = "none",
+        panel.grid.major.y = element_blank()) +
+  coord_flip()
+  # facet_wrap(~NAME)
+
+```
+
+From 2019 to 2021, the share of people working from home almost quintupled! Fewer people drove to work, and commuting by bus became much less common. For walking and biking the changes were downward too but within the margins of error.
+
+```{r, layout="l-page", fig.width=7, fig.asp = 0.618}
+msn_mode_share |> 
+  filter(!is.na(mode_readable) & gender == "total" & year >= 2019) |> 
+  group_by(mode_readable, year) |> 
+  pivot_wider(names_from = year, values_from = c(estimate, moe)) |> 
+  mutate(diff_22_21 = estimate_2022-estimate_2021,
+         diff_22_21_formatted = paste0(round(diff_22_21,digits = 1), "%")) |>
+  ggplot() +
+    geom_segment(aes(x=mode_readable, xend=mode_readable, y=estimate_2021, yend=estimate_2022), color="grey", arrow = arrow(length = unit(2, "mm"))) +
+  geom_point(aes(x = mode_readable, y = estimate_2021), color = 2021) +
+    geom_crossbar(aes(mode_readable, estimate_2021, ymin = estimate_2021 - moe_2021, ymax = estimate_2021 + moe_2021), alpha = .9,
+                  fatten = 1, color = 2021)+
+    geom_point(aes(x = mode_readable, y = estimate_2022), color = 2022) +
+      geom_crossbar(aes(mode_readable, estimate_2022, ymin = estimate_2022 - moe_2022, ymax = estimate_2022 + moe_2022), alpha = .9,
+                  fatten = 1, color = 2022)+
+  geom_text(aes(x = mode_readable, 
+                y = (estimate_2022 + estimate_2021)/2, 
+                label = diff_22_21_formatted),
+            nudge_x = .25)+
+  hrbrthemes::scale_color_ipsum(
+    #name = element_blank()
+    ) +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  theme(panel.grid.major.y = element_blank()) +
+  ylab("estimate (%)") +
+  xlab(element_blank()) +
+  labs(title = "Working from home is down; transit commutes are up",
+       subtitle ="City of Madison, 2021-2022. Boxes show margin of error",
+       caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") 
+```
+
+For transportation planning, it's important to not only look at percentages but also at absolute numbers: Fewer people driving to work means less peak hour congestion (which is not [necessarily a good thing](https://ssti.us/2021/03/16/traffic-congestion-vanished-and-more-people-died-on-the-roads/)); fewer transit riders means lower fare revenues; and fewer bike commuters may lead to less support of biking infrastructure. And a large number of people working from home may be a problem for commercial real estate or fewer customers for downtown restaurants. 
+
+```{r, layout="l-page", , fig.width = 8, fig.asp = 0.618}
+get_commute_total <- function(year) {
+  get_acs(geography = "place",
+                           state = "WI",
+                           survey = "acs1",
+                           year = year,
+                           table = "C08006",
+          summary_var = "C08006_001",
+          cache_table = T) |> 
+    mutate(year = year,
+           )
+}
+
+
+commute_numbers <- map_dfr(c(2021:2022), get_commute_total)
+
+commute_numbers_msn <- commute_numbers |> 
+  filter(NAME == "Madison city, Wisconsin") |> 
+  mutate(mode_readable = case_when(
+           str_detect(variable, "C08006_001") ~ "Total",
+           str_detect(variable, "C08006_002") ~ "Drive",
+           str_detect(variable, "C08006_008") ~ "Transit",
+           str_detect(variable, "C08006_009") ~ "Bike",
+           str_detect(variable, "C08006_010") ~ "Walk",
+           str_detect(variable, "C08006_012") ~ "Work from home")) |> 
+  filter(!is.na(mode_readable))
+
+commute_numbers_msn |> 
+  pivot_wider(id_cols = mode_readable, names_from = year, values_from = c(estimate, moe)) |> 
+  mutate(mode_readable = fct_reorder(mode_readable, estimate_2022)) |> 
+  group_by(mode_readable) |> 
+  mutate(moe_diff = moe_sum(moe = c(moe_2022, moe_2021), estimate = c(estimate_2022, estimate_2021))) |> 
+  ggplot() +
+    geom_segment(aes(x=mode_readable, xend=mode_readable, y=estimate_2021, yend=estimate_2022), color="grey", arrow = arrow(length = unit(2, "mm"))) +
+  geom_point(aes(x = mode_readable, y = estimate_2021), color = 2021) +
+    geom_point(aes(x = mode_readable, y = estimate_2022), color = 2022) +
+  geom_text(aes(x = mode_readable, 
+                y = (estimate_2022 + estimate_2021)/2, 
+                label = paste0(scales::number_format(style_positive = "plus",big.mark = ",")(estimate_2022-estimate_2021), " (±", round(moe_diff, 0), ")")),
+            nudge_x = .25)+
+  hrbrthemes::scale_color_ipsum(
+    #name = element_blank()
+    ) +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  theme(panel.grid.major.y = element_blank()) +
+  ylab("number of workers") +
+  xlab(element_blank()) +
+  labs(title = "Change in number of commuters, 2021-2022",
+       subtitle ="City of Madison. Statistically insignifant changes greyed out",
+       caption = "American Community Survey 1-year estimates, Table C08006\nVisualization: Harald Kliems") +
+  gghighlight::gghighlight(abs(estimate_2022-estimate_2021) > moe_diff, use_direct_label = F)
+```
+
+The total number of workers and of bike and walk commuters didn't change significantly. But there are about 21000 fewer drivers, 11,000 fewer bus commuters, and over 30,000 more people working from home. For a city of Madison's size, these changes are big!
+
+## What about those still going to the office?
+
+When I first shared the above graphs some people pointed out: "Working from home isn't really commuting! What do these percentages look like when we only account for the people who still leave the house to get to work?" Or to put it differently: Before the pandemic, you and 99 of your coworkers went to the office every day, and 10 of you biked. In 2021, half of your coworkers now work from home. Of the remaining 50 people in the office, do you still have 5 (i.e. 10%) people who bike to work? 
+
+```{r, layout="l-page", fig.width=6, fig.asp = 1}
+get_msn_mode_counts <- function(year) {
+  acs_data <- get_acs(year = year, survey = "acs1", table = "C08006", geography = "place", state = 55, cache_table=T, summary_var = "C08006_001")
+  acs_data |> 
+    filter(NAME == "Madison city, Wisconsin") |> 
+    mutate(year = year)
+}
+
+msn_counts <- map_dfr(c(2021, 2022), get_msn_mode_counts)
+
+msn_counts <- msn_counts |> 
+  mutate(summary_est = case_when(year == 2021 ~summary_est - 40279,
+                                 year == 2022 ~ summary_est - 31368),
+         mode_readable = case_when(
+    variable == "C08006_001" ~ "Total",
+      variable == "C08006_002" ~ "Drive",
+      variable == "C08006_003" ~ "Drove alone",
+      variable == "C08006_004" ~ "Carpooled",
+      variable == "C08006_008" ~ "Transit",
+      variable == "C08006_009" ~ "Bike",
+      variable == "C08006_010" ~ "Walk",
+      variable == "C08006_011" ~ "Other",
+      variable == "C08006_012" ~ "Work from home"
+  ),
+  mode_share = estimate/summary_est) |> 
+  filter(!is.na(mode_readable)) |> 
+  filter(mode_readable %in% c("Drive", "Transit", "Bike", "Walk", "Other")) |> 
+  mutate(mode_readable = fct_relevel(mode_readable, 
+                                     "Other",
+                                                "Bike", 
+                                                "Walk", 
+                                                "Transit", 
+                                                "Drive")) |> 
+  group_by(year,mode_readable) %>% 
+    mutate(pos = cumsum(mode_share) - mode_share/2)
+msn_counts |> 
+  ggplot(aes(as.factor(year), mode_share, fill = mode_readable)) +
+  geom_col(position = "stack") +
+  geom_text(aes(label = mode_readable), position = position_stack(vjust = 0.5), color = "white",
+            size = 3) +
+  scale_y_continuous(labels = scales::label_percent()) +
+    hrbrthemes::scale_fill_ipsum(name = "element_blank()") +
+  hrbrthemes::theme_ipsum() +
+  ylab("Commute mode share estimate") +
+  xlab(element_blank()) +
+  theme(legend.position = "none",   panel.grid.major.x = element_blank()) +
+  labs(title = "xx",
+       subtitle ="City of Madison, working from home excluded",
+       caption = "American Community Survey 1-year estimates, Table B08006\nVisualization: Harald Kliems")
+```
+
+This is the same data in table form.
+
+```{r}
+msn_counts |> 
+  
+  pivot_wider(id_cols = mode_readable, names_from = year, values_from = mode_share, names_prefix = "mode_share_") |> 
+  mutate(change = mode_share_2022- mode_share_2021) |> 
+  select(mode_readable, mode_share_2021, mode_share_2022, change) |>
+  ungroup() |> 
+  gt() |> 
+  tab_header(title = "Change in commute mode for workers not working from home") |> 
+  fmt_percent(columns = c(mode_share_2022, mode_share_2021, change), decimals = 0) |> 
+  tab_spanner(
+    label = "Mode share",
+    columns = c(mode_share_2021, mode_share_2022)
+  ) |> 
+  cols_label(mode_readable = "Commute mode", 
+             mode_share_2022 = "2022",
+             mode_share_2021 = "2021",
+             change = "Change (percentage points)") |> 
+   data_color(
+    columns = c(change),
+    colors = scales::col_numeric(
+      palette = "viridis",
+    domain = NULL )) |> 
+   tab_source_note(
+    source_note = "Data: American Community Survey 1-year estimates, Table B08006. Margins of error not shown."
+  )
+```
+
+Calculating the margins of error for these estimates is complex and I have not done that. But similar to the error bars we have seen above, changes of less than 2% points are probably not meaningful. So what do we take away from the table and chart? Of the people who still commute to the office, taking the bus is much less common while driving has gone up. The other percentages are basically unchanged. This makes sense: Bus service was reduced and many people perceived riding the bus as a risk for infection. Conversely, peak hour congestion for drivers went down (remember: overall the number of people commuting by car went _down_ even when their percentage here went _up_) and some employers reduced or waived parking fees.
+
+
+
+
+
+# Counter data 2022
+```{r}
+counts_2022 <- readxl::read_excel("data/EcoCounter_2022.xlsx", skip = 3,
+                   col_names = c("time_count", "count_cap_city", "count_sw_path")) |> 
+  mutate(date_count = floor_date(time_count, unit = "hours")) |> 
+  summarize(across(starts_with("count_"), ~ sum(.x, na.rm = T)), .by = date_count) |> 
+  pivot_longer(cols = starts_with("count_"), names_to = "location", values_to = "count_hourly") |> 
+  mutate(location = case_when(location == "count_cap_city" ~ "Cap City at North Shore",
+                              location == "count_sw_path" ~ "SW Path at Randall"),
+         dayofweek = wday(date_count),
+         weekendind = ifelse(dayofweek %in% c(1:5), "weekday", "weekend"),
+         month_count = month(date_count, label = T, abbr = T)) 
+counts_2022 |>   
+group_by(location, month_count) |> 
+    summarize(count_monthly = sum(count_hourly)) |> 
+  ggplot(aes(month_count, count_monthly, fill = location)) +
+  geom_col(position = "dodge") 
+    
+```
+
+```{r}
+# code reused from https://github.com/vgXhc/madison_bike_counts/blob/master/analysis.R
+
+##get bike counter data
+cc_counts <- read_csv("data/Eco-Totem_Capital_City_Trail_Bike_Counts(3).csv", col_types = "ci-") %>% mutate(location = "Cap City at North Shore")
+sw_counts <- read_csv("data/Eco-Totem_Southwest_Path_Bike_Counts(2).csv", col_types = "ci-") %>% mutate(location = "SW Path at Randall")
+#combine two counter locations
+counts <- bind_rows(cc_counts, sw_counts)
+#some data prep for counts
+counts2 <- counts %>% 
+  drop_na %>% 
+  mutate(date_count = mdy_hm(Count_Date), #fix date and time
+         location = as.factor(location),
+         # Count = ifelse(Count == 0, 1, Count), #convert 0 counts to 1 to allow log transform
+         # log_count = log(Count), #create value for log of count
+         dayofweek = wday(date_count),
+         weekendind = ifelse(dayofweek %in% c(1:5), "weekday", "weekend"),
+         month_count = month(date_count, label = T, abbr = T)
+         ) |> 
+  select(-Count_Date) |> 
+  rename(count_hourly = Count) |> 
+  filter(date_count < ymd_hms("2022-01-01 00:00:00"))
+
+
+rbind(counts2, counts_2022) |> 
+  mutate(year_count = year(date_count)) |> 
+  filter(year_count >= 2016) |> 
+  summarize(count_annual_by_location = sum(count_hourly), .by = c(location, year_count)) |>
+  reframe(location, year_count, count_annual_by_location, count_annual = sum(count_annual_by_location), .by = year_count) |> 
+  ggplot(aes(year_count, count_annual_by_location, fill = location)) +
+  geom_col(position = "stack") +
+  geom_text(
+    aes(label = after_stat(y), group = year_count), 
+    stat = 'summary', fun = sum, vjust = -1
+  )
+```
+
+
+# Job growth
+
+```{r}
+library(lehdr)
+library(sf)
+dane_county <- tigris::block_groups(55, 25, cb = T)
+jobs_2019 <- grab_lodes(state = "WI", 
+                   year = 2019, 
+                   lodes_type = "wac", 
+                   agg_geo = "bg",
+                   use_cache = TRUE)
+
+jobs_2015 <- grab_lodes(state = "WI", 
+                   year = 2015, 
+                   lodes_type = "wac", 
+                   agg_geo = "bg",
+                   use_cache = TRUE)
+
+jobs_change <- rbind(jobs_2015, jobs_2019) |> 
+  select(year, C000, w_bg) |> 
+  pivot_wider(names_from = year, 
+              values_from = C000,
+              names_prefix = "jobs_") |> 
+  mutate(job_growth = jobs_2019 - jobs_2015) 
+
+jobs_change <- dane_county |> 
+  left_join(jobs_change, by = join_by(GEOID == w_bg)) |> 
+  filter(ALAND != 0) 
+
+tm_shape(jobs_change) +
+  tm_polygons("job_growth", style = "jenks",
+              alpha = .7)
+
+
+jobs_dane <- dane_county |> 
+  left_join(jobs, by = join_by(GEOID == w_bg)) |> 
+  filter(ALAND != 0) |> 
+  mutate(jobs_per_acre = C000/(ALAND*0.0002471054))
+
+library(tmap)
+tmap_mode("view")
+tm_shape(jobs_dane) +
+  tm_polygons(col = "jobs_per_acre", style = "jenks",
+              alpha = .7)
+
+```
+
+Could try comparing job growth with BNA score
+ - maybe not available at BG level? Maybe not available beyond city limits?
+ 
+could also run analysis with distance from capitol (43.074722, -89.384167) -- that'd be fun
+
+# BNA
+```{r}
+bna_blocks <- st_read("data/neighborhood_census_blocks/neighborhood_census_blocks.shp")
+
+
+bna_blocks_geoid <- bna_blocks |> 
+  mutate(block_group_geoid = str_trunc(BLOCKID10, 
+                                       width = 12, 
+                                       side = "right",
+                                       ellipsis = ""
+                                      )) |> 
+  summarize(bna_score_bg = mean(OVERALL_SC, na.rm = T), .by = block_group_geoid)
+jobs_change |> 
+  left_j
+  
+bna_blocks_geoid |> st_drop_geometry() |> 
+  left_join(dane_county, by = join_by(block_group_geoid == GEOID)) |> class()
+  tm_shape() +
+  tm_polygons("bna_score_bg")
+bna_ways <- st_read("data/neighborhood_ways/neighborhood_ways.shp")
+tmap_mode("view")
+bna_blocks |> 
+  tm_shape() +
+  tm_polygons("OVERALL_SC")
+```
+
+
+
+
