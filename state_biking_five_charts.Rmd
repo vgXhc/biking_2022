@@ -25,9 +25,6 @@ bibliography: references.bib
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-One of the high holidays for census data nerds is ACSmas: The annual release of 1-year estimates from the American Community Survey. Last year's ACSmas was cancelled because of the pandemic, but this September we finally got our fix of data for 2021. 
-
-
 
 I was especially excited about the commuting data: What did the pandemic do to people's trips to work? How much of a shift to working from home would we see? And was the data quality actually going to be good enough to draw any firm conclusions? What follows is an in-depth look at the ACS commuting data for the City of Madison. 
 
@@ -41,14 +38,17 @@ library(tidycensus)
 library(tidyverse)
 library(gt)
 library(ggtext)
+library(extrafont)
+loadfonts(device = "win", quiet = TRUE) 
 
 library(showtext)
-showtext_auto()
+
 # First argument = name in R
 # Second argument = path to .otf-file
 font_add('fa-reg', 'fonts/Font Awesome 6 Free-Regular-400.otf')
 font_add('fa-brands', 'fonts/Font Awesome 6 Brands-Regular-400.otf')
 font_add('fa-solid', 'fonts/Font Awesome 6 Free-Solid-900.otf')
+font_add("Arial Narrow", "C:/Windows/Fonts/ARIALN.TTF")
 
 # variables <- load_variables(dataset = "acs1/subject", year = "2021")
 
@@ -253,8 +253,12 @@ mode_share_comparison <- mode_share_comparison |>
          NAME = str_remove(NAME, " city")) |> 
     filter(!is.na(mode_readable) & gender == "total")
 
+```
 
-rbind(mode_share_comparison, national_mode_share_2022_total) %>% 
+```{r}
+showtext_auto(enable = F)
+loadfonts()
+p <- rbind(mode_share_comparison, national_mode_share_2022_total) %>% 
   mutate(name_by_bike_share = fct_relevel(NAME, c("San Francisco, California", 
                         "Portland, Oregon",
                         "Madison, Wisconsin", 
@@ -264,7 +268,7 @@ rbind(mode_share_comparison, national_mode_share_2022_total) %>%
                         "US"))) %>% 
   group_by(mode_readable, name_by_bike_share) |> 
   ggplot(aes(name_by_bike_share, estimate, color = mode_readable, label = label)) +
-  geom_richtext(size = 8, label.colour = NA, fill = NA) +
+  
     geom_point(size = 3, color = "darkgrey") +
   hrbrthemes::scale_color_ipsum() +
   hrbrthemes::theme_ipsum() +
@@ -280,6 +284,10 @@ rbind(mode_share_comparison, national_mode_share_2022_total) %>%
   coord_flip()
   # facet_wrap(~NAME)
 
+showtext_auto(enable = T)
+p +
+  geom_richtext(size = 8, label.colour = NA, fill = NA)
+showtext_auto(enable = F)
 ```
 
 From 2019 to 2021, the share of people working from home almost quintupled! Fewer people drove to work, and commuting by bus became much less common. For walking and biking the changes were downward too but within the margins of error.
