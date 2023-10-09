@@ -49,6 +49,7 @@ font_add('fa-reg', 'fonts/Font Awesome 6 Free-Regular-400.otf')
 font_add('fa-brands', 'fonts/Font Awesome 6 Brands-Regular-400.otf')
 font_add('fa-solid', 'fonts/Font Awesome 6 Free-Solid-900.otf')
 font_add("Arial Narrow", "C:/Windows/Fonts/ARIALN.TTF")
+font_add_google("Roboto Condensed", "Roboto Condensed")
 
 # variables <- load_variables(dataset = "acs1/subject", year = "2021")
 
@@ -109,11 +110,11 @@ msn_mode_share |>
     ) +
   geom_crossbar(aes(ymin = estimate - moe, ymax = estimate + moe), alpha = .9,
                   fatten = 1) +
-  hrbrthemes::theme_ipsum() +
+  hrbrthemes::theme_ipsum_rc() +
   scale_x_continuous(breaks = c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022), minor_breaks = NULL, limits = c(2010, 2023.5)) +
   ylab("estimate (%)") +
   labs(title = "Some Madisonians returned to the office in 2022,\nand they did so by car or bus",
-       subtitle ="City of Madison commute mode share, 2010-2022",
+       subtitle ="City of Madison commute mode share and margin of error",
        caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") +
     ggrepel::geom_text_repel(data = msn_mode_share_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) +
   theme(legend.position = "none")
@@ -166,7 +167,7 @@ national_mode_share <- national_mode_share |>
 # data frame for the ggrepel labels on the right of the plot
 national_mode_share_2022 <-  national_mode_share |> 
   filter(year == 2022 & !is.na(mode_readable))
-
+showtext_auto()
 national_mode_share |> 
   filter(!is.na(mode_readable) & gender == "total") |> 
   group_by(mode_readable, year) |> 
@@ -177,14 +178,13 @@ national_mode_share |>
     ) +
   geom_crossbar(aes(ymin = estimate - moe, ymax = estimate + moe), alpha = .9,
                   fatten = 1) +
-  hrbrthemes::theme_ipsum() +
+  hrbrthemes::theme_ipsum_rc() +
   scale_x_continuous(breaks = c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022), minor_breaks = NULL, limits = c(2010, 2023.5)) +
   ylab("estimate (%)") +
   labs(title = "Some Madisonians returned to the office in 2022,\nand they did so by car or bus",
        subtitle ="City of Madison commute mode share, 2010-2022",
        caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") +
-    ggrepel::geom_text_repel(data = national_mode_share_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) +
-  theme(legend.position = "none")
+    ggrepel::geom_text_repel(data = national_mode_share_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) 
 
 
 combined <- rbind(national_mode_share |> mutate(location = "national"), msn_mode_share |> mutate(location = "Madison"))
@@ -206,7 +206,7 @@ combined |>
        subtitle ="City of Madison and US commute mode share, 2010-2022",
        caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") +
     ggrepel::geom_text_repel(data = combined_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) +
-  theme(legend.position = "none") +
+  theme(legend.position = "none", plot.title = element_text(lineheight = .5, margin = margin(b = 0.5)), plot.subtitle = element_text(margin = margin(t = 0))) +
   facet_wrap(~location)
 ```
 Chart should also have US national number in it
@@ -256,8 +256,10 @@ mode_share_comparison <- mode_share_comparison |>
 ```
 
 ```{r}
-showtext_auto(enable = F)
-loadfonts()
+# showtext_auto(enable = F)
+# detach(extrafont, unload = T)
+# detach(ggtext, unload = T)
+
 p <- rbind(mode_share_comparison, national_mode_share_2022_total) %>% 
   mutate(name_by_bike_share = fct_relevel(NAME, c("San Francisco, California", 
                         "Portland, Oregon",
@@ -283,6 +285,7 @@ p <- rbind(mode_share_comparison, national_mode_share_2022_total) %>%
         panel.grid.major.y = element_blank()) +
   coord_flip()
   # facet_wrap(~NAME)
+library(showtext)
 
 showtext_auto(enable = T)
 p +
