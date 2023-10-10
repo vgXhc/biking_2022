@@ -1,7 +1,7 @@
 ---
-title: "What's the latest on commute mode share in Madison?"
+title: "The State of Biking in Madison 2022"
 description: |
-  Working from home has seen an unprecedented boom, while biking stagnates.
+  A look at several indicators of how many people biked (and took other means of transportation).
 author:
   - name: Harald Kliems 
     orcid_id: 0000-0003-2542-0047
@@ -14,6 +14,7 @@ categories:
   - Madison (WI)
   - transportation
   - American Community Survey
+  - Eco Counter
 output: 
   distill::distill_article:
     code_folding: TRUE
@@ -26,10 +27,13 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 
-I was especially excited about the commuting data: What did the pandemic do to people's trips to work? How much of a shift to working from home would we see? And was the data quality actually going to be good enough to draw any firm conclusions? What follows is an in-depth look at the ACS commuting data for the City of Madison. 
+Another year of commuting data from the American Community Survey (ACS) was released. This is an opportunity to look at the state of biking in 2022. Last year, I did a deep dive into the ACS commuting data, as it was the first year that the data was released after the onset of the pandemic. And indeed: Huge changes in commuting, especially an explosion in working from home, could be seen. However, commuting is only one part of our transportation landscape, and this year my review will also look at several other indicators of the state of biking in Madison, as well as making comparisons with some other US cities and national trends.
 
-# Mode share over time
-ACS mode share data is available all the way back to 2010. In [previous posts on the Madison Bikes blog](https://www.madisonbikes.org/2020/09/biking-numbers-in-madison-not-so-great/) I had already looked at these time series data -- and frankly, it was not that exciting: By and large the percentages of different modes of getting to worked stayed the same. Biking didn't grow but neither shrunk. It seemed highly likely that the pandemic would have changed things up. And it did: 
+
+# Commuting data from ACS: Fewer people work from home; driving and transit usage are up
+
+After an unprecedented rise in working from home between 2019 and 2021, some people returned to the office in 2022. Their share went from over 26% in 2021 to about 20% in 2021. The two modes with the largest increases were driving (58% to 62%; increase within margin of error) and transit (3% to 5%). All other modes didn't change much at all, and the changes were well within the margins of error. Biking ended up at a miserable 2.6% (+/- 0.7%), the lowest percentate in the data reaching back to 2010.
+ 
 
 ```{r, layout="l-page", fig.width=6, fig.asp = 0.618}
 library(tmap)
@@ -120,6 +124,9 @@ msn_mode_share |>
   theme(legend.position = "none")
 ```
 
+# How does Madison compare to US-wide trends?
+
+If we look at change over time, it seems like a good idea to ask whether Madison is following a unique path. The following chart compares the Madison in Madison with that of the US as a whole:
 
 ```{r}
 get_national_mode_share <- function(year) {
@@ -209,7 +216,7 @@ combined |>
   theme(legend.position = "none", plot.title = element_text(lineheight = .5, margin = margin(b = 0.5)), plot.subtitle = element_text(margin = margin(t = 0))) +
   facet_wrap(~location)
 ```
-Chart should also have US national number in it
+A similar pattern emerges. While Madison commuters drive less, bike, walk, and bus more than the average US commuter, the trend over time looks similar. And that's true for the change from 2021 to 2022 as well: Just like in Madison, nationwide working from home went down, and driving and transit rebounded slightly. 
 
 ```{r}
 get_place_mode_share <- function(year, places) {
