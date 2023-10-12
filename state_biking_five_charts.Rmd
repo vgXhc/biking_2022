@@ -32,7 +32,9 @@ Another year of commuting data from the American Community Survey (ACS) was rele
 
 # Commuting data from ACS: Fewer people work from home; driving and transit usage are up
 
-After an unprecedented rise in working from home between 2019 and 2021, some people returned to the office in 2022. Their share went from over 26% in 2021 to about 20% in 2021. The two modes with the largest increases were driving (58% to 62%; increase within margin of error) and transit (3% to 5%). All other modes didn't change much at all, and the changes were well within the margins of error. Biking ended up at a miserable 2.6% (+/- 0.7%), the lowest percentate in the data reaching back to 2010.
+After an unprecedented rise in working from home between 2019 and 2021, some people returned to the office in 2022. Their share went from over 26% in 2021 to about 20% in 2021. The two modes with the largest increases were driving (58% to 62%; increase within margin of error) and transit (3% to 5%). All other modes didn't change much at all, and the changes were well within the margins of error. Biking ended up at a miserable 2.6% (+/- 0.7%), the lowest percentage in the data reaching back to 2010.
+
+
  
 
 ```{r, layout="l-page", fig.width=6, fig.asp = 0.618}
@@ -43,6 +45,7 @@ library(tidyverse)
 library(gt)
 library(ggtext)
 library(extrafont)
+library(hrbrthemes)
 loadfonts(device = "win", quiet = TRUE) 
 
 library(showtext)
@@ -123,6 +126,42 @@ msn_mode_share |>
     ggrepel::geom_text_repel(data = msn_mode_share_2022 |> filter(gender == "total"), aes(label = paste0(mode_readable, " ", estimate, "%")), nudge_x = 1) +
   theme(legend.position = "none")
 ```
+
+The following chart zooms in on the the changes between 2021 and 2022, which makes it easier to see which changes are beyond the margin of error:
+
+```{r, layout="l-page", fig.width=7, fig.asp = 0.618}
+msn_mode_share |> 
+  filter(!is.na(mode_readable) & gender == "total" & year >= 2019) |> 
+  group_by(mode_readable, year) |> 
+  pivot_wider(names_from = year, values_from = c(estimate, moe)) |> 
+  mutate(diff_22_21 = estimate_2022-estimate_2021,
+         diff_22_21_formatted = paste0(round(diff_22_21,digits = 1), "%")) |>
+  ggplot() +
+    geom_segment(aes(x=mode_readable, xend=mode_readable, y=estimate_2021, yend=estimate_2022), color="grey", arrow = arrow(length = unit(2, "mm"))) +
+  geom_point(aes(x = mode_readable, y = estimate_2021), color = "#d18975") +
+    geom_crossbar(aes(mode_readable, estimate_2021, ymin = estimate_2021 - moe_2021, ymax = estimate_2021 + moe_2021), alpha = .6,
+                  fatten = 1, color = "#d18975")+
+    geom_point(aes(x = mode_readable, y = estimate_2022), color = "#8fd175") +
+      geom_crossbar(aes(mode_readable, estimate_2022, ymin = estimate_2022 - moe_2022, ymax = estimate_2022 + moe_2022), alpha = .6,
+                  fatten = 1, color = "#8fd175")+
+  geom_label(aes(x = mode_readable, 
+                y = (estimate_2022 + estimate_2021)/2, 
+                label = diff_22_21_formatted),
+            nudge_x = .4, label.padding = unit(.1, "lines"))+
+  hrbrthemes::scale_color_ipsum(
+    #name = element_blank()
+    ) +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  theme(panel.grid.major.y = element_blank()) +
+  ylab("estimate (%)") +
+  xlab(element_blank()) +
+  labs(title = "Working from home is down; transit commutes are up",
+       subtitle ="City of Madison, 2021-2022. Boxes show margin of error",
+       caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") 
+```
+
+As always, when talking about ACS data, keep in mind that commuting is defined how the survey respondent "usually" got to work in the past week. Especially now that many workers are in hybrid work arrangements, there is additional uncertainty about the interpretation of the numbers.
 
 # How does Madison compare to US-wide trends?
 
@@ -218,6 +257,9 @@ combined |>
 ```
 A similar pattern emerges. While Madison commuters drive less, bike, walk, and bus more than the average US commuter, the trend over time looks similar. And that's true for the change from 2021 to 2022 as well: Just like in Madison, nationwide working from home went down, and driving and transit rebounded slightly. 
 
+# How are other cities doing?
+Rather than comparing Madison with the US as whole, we can also compare our 2022 numbers with other US cities. Here we see a lot of variability, but when it comes to biking, other places aren't doing much better. San Francisco and Portland have marginally higher bike commuting rates, and Minneapolis is a little lower than Madison,  but they all are within the margin error. New York City is below 2%, and in Milwaukee not even 1 out of 100 workers bike to work.
+
 ```{r}
 get_place_mode_share <- function(year, places) {
   acs_data <- get_acs(year = year, survey = "acs1", table = "S0801", geography = "place", cache_table=T)
@@ -280,6 +322,7 @@ p <- rbind(mode_share_comparison, national_mode_share_2022_total) %>%
   
     geom_point(size = 3, color = "darkgrey") +
   hrbrthemes::scale_color_ipsum() +
+  scale_fill_discrete()
   hrbrthemes::theme_ipsum() +
   # scale_x_continuous(breaks = c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022), minor_breaks = NULL, limits = c(2010, 2023.5)) +
   ylab("estimate (%)") +
@@ -300,190 +343,10 @@ p +
 showtext_auto(enable = F)
 ```
 
-From 2019 to 2021, the share of people working from home almost quintupled! Fewer people drove to work, and commuting by bus became much less common. For walking and biking the changes were downward too but within the margins of error.
-
-```{r, layout="l-page", fig.width=7, fig.asp = 0.618}
-msn_mode_share |> 
-  filter(!is.na(mode_readable) & gender == "total" & year >= 2019) |> 
-  group_by(mode_readable, year) |> 
-  pivot_wider(names_from = year, values_from = c(estimate, moe)) |> 
-  mutate(diff_22_21 = estimate_2022-estimate_2021,
-         diff_22_21_formatted = paste0(round(diff_22_21,digits = 1), "%")) |>
-  ggplot() +
-    geom_segment(aes(x=mode_readable, xend=mode_readable, y=estimate_2021, yend=estimate_2022), color="grey", arrow = arrow(length = unit(2, "mm"))) +
-  geom_point(aes(x = mode_readable, y = estimate_2021), color = "#d18975") +
-    geom_crossbar(aes(mode_readable, estimate_2021, ymin = estimate_2021 - moe_2021, ymax = estimate_2021 + moe_2021), alpha = .9,
-                  fatten = 1, color = "#d18975")+
-    geom_point(aes(x = mode_readable, y = estimate_2022), color = "#8fd175") +
-      geom_crossbar(aes(mode_readable, estimate_2022, ymin = estimate_2022 - moe_2022, ymax = estimate_2022 + moe_2022), alpha = .9,
-                  fatten = 1, color = "#8fd175")+
-  geom_text(aes(x = mode_readable, 
-                y = (estimate_2022 + estimate_2021)/2, 
-                label = diff_22_21_formatted),
-            nudge_x = .25)+
-  hrbrthemes::scale_color_ipsum(
-    #name = element_blank()
-    ) +
-  hrbrthemes::theme_ipsum() +
-  coord_flip() +
-  theme(panel.grid.major.y = element_blank()) +
-  ylab("estimate (%)") +
-  xlab(element_blank()) +
-  labs(title = "Working from home is down; transit commutes are up",
-       subtitle ="City of Madison, 2021-2022. Boxes show margin of error",
-       caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") 
-```
-
-For transportation planning, it's important to not only look at percentages but also at absolute numbers: Fewer people driving to work means less peak hour congestion (which is not [necessarily a good thing](https://ssti.us/2021/03/16/traffic-congestion-vanished-and-more-people-died-on-the-roads/)); fewer transit riders means lower fare revenues; and fewer bike commuters may lead to less support of biking infrastructure. And a large number of people working from home may be a problem for commercial real estate or fewer customers for downtown restaurants. 
-
-```{r, layout="l-page", , fig.width = 8, fig.asp = 0.618}
-get_commute_total <- function(year) {
-  get_acs(geography = "place",
-                           state = "WI",
-                           survey = "acs1",
-                           year = year,
-                           table = "C08006",
-          summary_var = "C08006_001",
-          cache_table = T) |> 
-    mutate(year = year,
-           )
-}
-
-
-commute_numbers <- map_dfr(c(2021:2022), get_commute_total)
-
-commute_numbers_msn <- commute_numbers |> 
-  filter(NAME == "Madison city, Wisconsin") |> 
-  mutate(mode_readable = case_when(
-           str_detect(variable, "C08006_001") ~ "Total",
-           str_detect(variable, "C08006_002") ~ "Drive",
-           str_detect(variable, "C08006_008") ~ "Transit",
-           str_detect(variable, "C08006_009") ~ "Bike",
-           str_detect(variable, "C08006_010") ~ "Walk",
-           str_detect(variable, "C08006_012") ~ "Work from home")) |> 
-  filter(!is.na(mode_readable))
-
-commute_numbers_msn |> 
-  pivot_wider(id_cols = mode_readable, names_from = year, values_from = c(estimate, moe)) |> 
-  mutate(mode_readable = fct_reorder(mode_readable, estimate_2022)) |> 
-  group_by(mode_readable) |> 
-  mutate(moe_diff = moe_sum(moe = c(moe_2022, moe_2021), estimate = c(estimate_2022, estimate_2021))) |> 
-  ggplot() +
-    geom_segment(aes(x=mode_readable, xend=mode_readable, y=estimate_2021, yend=estimate_2022), color="grey", arrow = arrow(length = unit(2, "mm"))) +
-  geom_point(aes(x = mode_readable, y = estimate_2021), color = 2021) +
-    geom_point(aes(x = mode_readable, y = estimate_2022), color = 2022) +
-  geom_text(aes(x = mode_readable, 
-                y = (estimate_2022 + estimate_2021)/2, 
-                label = paste0(scales::number_format(style_positive = "plus",big.mark = ",")(estimate_2022-estimate_2021), " (±", round(moe_diff, 0), ")")),
-            nudge_x = .25)+
-  hrbrthemes::scale_color_ipsum(
-    #name = element_blank()
-    ) +
-  hrbrthemes::theme_ipsum() +
-  coord_flip() +
-  theme(panel.grid.major.y = element_blank()) +
-  ylab("number of workers") +
-  xlab(element_blank()) +
-  labs(title = "Change in number of commuters, 2021-2022",
-       subtitle ="City of Madison. Statistically insignifant changes greyed out",
-       caption = "American Community Survey 1-year estimates, Table C08006\nVisualization: Harald Kliems") +
-  gghighlight::gghighlight(abs(estimate_2022-estimate_2021) > moe_diff, use_direct_label = F)
-```
-
-The total number of workers and of bike and walk commuters didn't change significantly. But there are about 21000 fewer drivers, 11,000 fewer bus commuters, and over 30,000 more people working from home. For a city of Madison's size, these changes are big!
-
-## What about those still going to the office?
-
-When I first shared the above graphs some people pointed out: "Working from home isn't really commuting! What do these percentages look like when we only account for the people who still leave the house to get to work?" Or to put it differently: Before the pandemic, you and 99 of your coworkers went to the office every day, and 10 of you biked. In 2021, half of your coworkers now work from home. Of the remaining 50 people in the office, do you still have 5 (i.e. 10%) people who bike to work? 
-
-```{r, layout="l-page", fig.width=6, fig.asp = 1}
-get_msn_mode_counts <- function(year) {
-  acs_data <- get_acs(year = year, survey = "acs1", table = "C08006", geography = "place", state = 55, cache_table=T, summary_var = "C08006_001")
-  acs_data |> 
-    filter(NAME == "Madison city, Wisconsin") |> 
-    mutate(year = year)
-}
-
-msn_counts <- map_dfr(c(2021, 2022), get_msn_mode_counts)
-
-msn_counts <- msn_counts |> 
-  mutate(summary_est = case_when(year == 2021 ~summary_est - 40279,
-                                 year == 2022 ~ summary_est - 31368),
-         mode_readable = case_when(
-    variable == "C08006_001" ~ "Total",
-      variable == "C08006_002" ~ "Drive",
-      variable == "C08006_003" ~ "Drove alone",
-      variable == "C08006_004" ~ "Carpooled",
-      variable == "C08006_008" ~ "Transit",
-      variable == "C08006_009" ~ "Bike",
-      variable == "C08006_010" ~ "Walk",
-      variable == "C08006_011" ~ "Other",
-      variable == "C08006_012" ~ "Work from home"
-  ),
-  mode_share = estimate/summary_est) |> 
-  filter(!is.na(mode_readable)) |> 
-  filter(mode_readable %in% c("Drive", "Transit", "Bike", "Walk", "Other")) |> 
-  mutate(mode_readable = fct_relevel(mode_readable, 
-                                     "Other",
-                                                "Bike", 
-                                                "Walk", 
-                                                "Transit", 
-                                                "Drive")) |> 
-  group_by(year,mode_readable) %>% 
-    mutate(pos = cumsum(mode_share) - mode_share/2)
-msn_counts |> 
-  ggplot(aes(as.factor(year), mode_share, fill = mode_readable)) +
-  geom_col(position = "stack") +
-  geom_text(aes(label = mode_readable), position = position_stack(vjust = 0.5), color = "white",
-            size = 3) +
-  scale_y_continuous(labels = scales::label_percent()) +
-    hrbrthemes::scale_fill_ipsum(name = "element_blank()") +
-  hrbrthemes::theme_ipsum() +
-  ylab("Commute mode share estimate") +
-  xlab(element_blank()) +
-  theme(legend.position = "none",   panel.grid.major.x = element_blank()) +
-  labs(title = "xx",
-       subtitle ="City of Madison, working from home excluded",
-       caption = "American Community Survey 1-year estimates, Table B08006\nVisualization: Harald Kliems")
-```
-
-This is the same data in table form.
-
-```{r}
-msn_counts |> 
-  
-  pivot_wider(id_cols = mode_readable, names_from = year, values_from = mode_share, names_prefix = "mode_share_") |> 
-  mutate(change = mode_share_2022- mode_share_2021) |> 
-  select(mode_readable, mode_share_2021, mode_share_2022, change) |>
-  ungroup() |> 
-  gt() |> 
-  tab_header(title = "Change in commute mode for workers not working from home") |> 
-  fmt_percent(columns = c(mode_share_2022, mode_share_2021, change), decimals = 0) |> 
-  tab_spanner(
-    label = "Mode share",
-    columns = c(mode_share_2021, mode_share_2022)
-  ) |> 
-  cols_label(mode_readable = "Commute mode", 
-             mode_share_2022 = "2022",
-             mode_share_2021 = "2021",
-             change = "Change (percentage points)") |> 
-   data_color(
-    columns = c(change),
-    colors = scales::col_numeric(
-      palette = "viridis",
-    domain = NULL )) |> 
-   tab_source_note(
-    source_note = "Data: American Community Survey 1-year estimates, Table B08006. Margins of error not shown."
-  )
-```
-
-Calculating the margins of error for these estimates is complex and I have not done that. But similar to the error bars we have seen above, changes of less than 2% points are probably not meaningful. So what do we take away from the table and chart? Of the people who still commute to the office, taking the bus is much less common while driving has gone up. The other percentages are basically unchanged. This makes sense: Bus service was reduced and many people perceived riding the bus as a risk for infection. Conversely, peak hour congestion for drivers went down (remember: overall the number of people commuting by car went _down_ even when their percentage here went _up_) and some employers reduced or waived parking fees.
-
-
-
-
-
 # Counter data 2022
+
+Commuting data from the American Community Survey is only part of the picture. Another indicator of the state of biking comes from the city's two permanent visual bike counters. These are located on the Southwest Path near Camp Randall and on the Cap City Trail at the intersection of John Nolen and North Shore. Rather than only counting commutes, these counters capture all bike trips. 
+
 ```{r}
 counts_2022 <- readxl::read_excel("data/EcoCounter_2022.xlsx", skip = 3,
                    col_names = c("time_count", "count_cap_city", "count_sw_path")) |> 
@@ -495,11 +358,11 @@ counts_2022 <- readxl::read_excel("data/EcoCounter_2022.xlsx", skip = 3,
          dayofweek = wday(date_count),
          weekendind = ifelse(dayofweek %in% c(1:5), "weekday", "weekend"),
          month_count = month(date_count, label = T, abbr = T)) 
-counts_2022 |>   
-group_by(location, month_count) |> 
-    summarize(count_monthly = sum(count_hourly)) |> 
-  ggplot(aes(month_count, count_monthly, fill = location)) +
-  geom_col(position = "dodge") 
+# counts_2022 |>   
+# group_by(location, month_count) |> 
+#     summarize(count_monthly = sum(count_hourly)) |> 
+#   ggplot(aes(month_count, count_monthly, fill = location)) +
+#   geom_col(position = "dodge") 
     
 ```
 
@@ -536,10 +399,28 @@ rbind(counts2, counts_2022) |>
   geom_col(position = "stack") +
   geom_text(
     aes(label = after_stat(y), group = year_count), 
-    stat = 'summary', fun = sum, vjust = -1
-  )
+    stat = 'summary', fun = sum, vjust = -.3, family = "Roboto Condensed"
+  ) +
+  ylim(c(0, 1050000)) +
+  scale_fill_ipsum(name = "Location") +
+  hrbrthemes::theme_ipsum_rc() +
+  ylab("Number of cyclists") +
+  xlab("Year") +
+  labs(title = "Bike counts declined by 24% between 2016 and 2022",
+       subtitle = "Counts at permanent Eco Counter locations",
+       caption = "Data: City of Madison\nVisualization: Harald Kliems") +
+  theme(legend.position = "right")
 ```
 
+These counts don't paint a rosy picture for biking either. Since the counters were installed, they have counted fewer and fewer people on bikes. While in 2016, we had almost one million counts, by 2022 that number has declined to less than 750,000.
+
+# Streetlight data
+The American Community Survey only counts commutes; the Eco Counters only count at two locations. Streetlight, a private company, promises to provide comprehensive counts for the whole metro area. They do this by using cell phone and other location data and applying various machine learning mechanisms to estimate bike trips. The data and algorithms are proprietary, and research published by Streetlight claims a high correlation between their data and validation counts from permanent bike counters.
+
+In a recently released report, Streetlight compares 100 US metro areas and how cycling activity has changed there compared to 2019, and then between 2020 and 2022. The idea is that during the COVID pandemic many US cities saw a surge in cycling, and now we have an opportunity to see if that surge was sustainable. In terms of growth from 2019 to 2020, the Madison metro area (it's unclear what exactly that includes) did _not_ see a surge: We were 86th out of 100 metro areas in term. And from 2020 to 2022, Madison fell even further, to 98th place, ahead only of Portland, OR, and Fresno, CA. 
+
+# A single sign of optimism? BCycle ridership
+So far all we have seen is doom and gloom. Are there any signs for optimism? Yes: The one indicator that has seen huge growth in the past few years is use of Madison bike share system BCycle. 
 
 # Job growth
 
