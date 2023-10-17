@@ -19,7 +19,6 @@ output:
   distill::distill_article:
     code_folding: TRUE
     self_contained: false
-bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -319,10 +318,10 @@ p <- rbind(mode_share_comparison, national_mode_share_2022_total) %>%
                         "US"))) %>% 
   group_by(mode_readable, name_by_bike_share) |> 
   ggplot(aes(name_by_bike_share, estimate, color = mode_readable, label = label)) +
-  
-    geom_point(size = 3, color = "darkgrey") +
+    geom_richtext(size = 8, label.colour = NA, fill = NA) +
+    geom_point(size = 2, color = "red") +
   hrbrthemes::scale_color_ipsum() +
-  scale_fill_discrete()
+  scale_fill_discrete() +
   hrbrthemes::theme_ipsum() +
   # scale_x_continuous(breaks = c(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2021, 2022), minor_breaks = NULL, limits = c(2010, 2023.5)) +
   ylab("estimate (%)") +
@@ -337,10 +336,6 @@ p <- rbind(mode_share_comparison, national_mode_share_2022_total) %>%
   # facet_wrap(~NAME)
 library(showtext)
 
-showtext_auto(enable = T)
-p +
-  geom_richtext(size = 8, label.colour = NA, fill = NA)
-showtext_auto(enable = F)
 ```
 
 # Counter data 2022
@@ -417,89 +412,16 @@ These counts don't paint a rosy picture for biking either. Since the counters we
 # Streetlight data
 The American Community Survey only counts commutes; the Eco Counters only count at two locations. Streetlight, a private company, promises to provide comprehensive counts for the whole metro area. They do this by using cell phone and other location data and applying various machine learning mechanisms to estimate bike trips. The data and algorithms are proprietary, and research published by Streetlight claims a high correlation between their data and validation counts from permanent bike counters.
 
-In a recently released report, Streetlight compares 100 US metro areas and how cycling activity has changed there compared to 2019, and then between 2020 and 2022. The idea is that during the COVID pandemic many US cities saw a surge in cycling, and now we have an opportunity to see if that surge was sustainable. In terms of growth from 2019 to 2020, the Madison metro area (it's unclear what exactly that includes) did _not_ see a surge: We were 86th out of 100 metro areas in term. And from 2020 to 2022, Madison fell even further, to 98th place, ahead only of Portland, OR, and Fresno, CA. 
+In a recently released report, Streetlight compares 100 US metro areas and how cycling activity has changed there compared to 2019, and then between 2020 and 2022. The idea is that during the COVID pandemic many US cities saw a surge in cycling, and now we have an opportunity to see if that surge was sustainable. In terms of growth from 2019 to 2020, the Madison metro area (it's unclear what exactly that includes) did _not_ see a surge: We ranked 86th out of 100 metro areas in terms of growth. And from 2020 to 2022, Madison fell even further, to 98th place, ahead only of Portland, OR, and Fresno, CA. 
 
 # A single sign of optimism? BCycle ridership
-So far all we have seen is doom and gloom. Are there any signs for optimism? Yes: The one indicator that has seen huge growth in the past few years is use of Madison bike share system BCycle. 
+So far all we have seen is doom and gloom. Are there any signs for optimism? Yes: The one indicator that has seen growth in the past few years is use of Madison's bike share system BCycle. I don't have complete ridership stats over the years, by Madison BCycle shared this graph of March to September ridership over the past 5 years.^[The BCycle system is open from mid-March to mid-December.]
 
-# Job growth
+[!Madison BCycle March to September ridership](data/bcycle_ridership_mar_september.png)
 
-```{r}
-library(lehdr)
-library(sf)
-dane_county <- tigris::block_groups(55, 25, cb = T)
-jobs_2019 <- grab_lodes(state = "WI", 
-                   year = 2019, 
-                   lodes_type = "wac", 
-                   agg_geo = "bg",
-                   use_cache = TRUE)
+Adding up the numbers shows a 3.6% growth from 222,000 trips in 2021 to 230,000 trips in 2022. 
 
-jobs_2015 <- grab_lodes(state = "WI", 
-                   year = 2015, 
-                   lodes_type = "wac", 
-                   agg_geo = "bg",
-                   use_cache = TRUE)
-
-jobs_change <- rbind(jobs_2015, jobs_2019) |> 
-  select(year, C000, w_bg) |> 
-  pivot_wider(names_from = year, 
-              values_from = C000,
-              names_prefix = "jobs_") |> 
-  mutate(job_growth = jobs_2019 - jobs_2015) 
-
-jobs_change <- dane_county |> 
-  left_join(jobs_change, by = join_by(GEOID == w_bg)) |> 
-  filter(ALAND != 0) 
-
-tm_shape(jobs_change) +
-  tm_polygons("job_growth", style = "jenks",
-              alpha = .7)
-
-
-jobs_dane <- dane_county |> 
-  left_join(jobs, by = join_by(GEOID == w_bg)) |> 
-  filter(ALAND != 0) |> 
-  mutate(jobs_per_acre = C000/(ALAND*0.0002471054))
-
-library(tmap)
-tmap_mode("view")
-tm_shape(jobs_dane) +
-  tm_polygons(col = "jobs_per_acre", style = "jenks",
-              alpha = .7)
-
-```
-
-Could try comparing job growth with BNA score
- - maybe not available at BG level? Maybe not available beyond city limits?
- 
-could also run analysis with distance from capitol (43.074722, -89.384167) -- that'd be fun
-
-# BNA
-```{r}
-bna_blocks <- st_read("data/neighborhood_census_blocks/neighborhood_census_blocks.shp")
-
-
-bna_blocks_geoid <- bna_blocks |> 
-  mutate(block_group_geoid = str_trunc(BLOCKID10, 
-                                       width = 12, 
-                                       side = "right",
-                                       ellipsis = ""
-                                      )) |> 
-  summarize(bna_score_bg = mean(OVERALL_SC, na.rm = T), .by = block_group_geoid)
-jobs_change |> 
-  left_j
-  
-bna_blocks_geoid |> st_drop_geometry() |> 
-  left_join(dane_county, by = join_by(block_group_geoid == GEOID)) |> class()
-  tm_shape() +
-  tm_polygons("bna_score_bg")
-bna_ways <- st_read("data/neighborhood_ways/neighborhood_ways.shp")
-tmap_mode("view")
-bna_blocks |> 
-  tm_shape() +
-  tm_polygons("OVERALL_SC")
-```
-
-
+# Where does this leave us?
+I don't like it, but it appears that the conclusion for 2022 has to be that it was another lost year for biking in Madison. Yes, compared to most other US cities, there is still a lot of biking, but for many years we have lacked any growth. This post doesn't go into possible explanations, but that work needs to be done in order to figure out how we can turn this trend around.
 
 
