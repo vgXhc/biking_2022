@@ -6,8 +6,8 @@ author:
   - name: Harald Kliems 
     orcid_id: 0000-0003-2542-0047
     url: https://haraldkliems.netlify.app/
-date: 2022-10-12
-repository_url: https://github.com/vgXhc/ACS_1y_Madison/
+date: 2022-10-28
+repository_url: https://github.com/vgXhc/biking_2022
 compare_updates_url:
 creative_commons: CC BY-SA
 categories:
