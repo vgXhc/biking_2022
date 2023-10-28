@@ -285,9 +285,9 @@ library(showtext)
 showtext_auto()
 # First argument = name in R
 # Second argument = path to .otf-file
-font_add('fa-reg', 'fonts/Font Awesome 6 Free-Regular-400.otf')
-font_add('fa-brands', 'fonts/Font Awesome 6 Brands-Regular-400.otf')
-font_add('fa-solid', 'fonts/Font Awesome 6 Free-Solid-900.otf')
+font_add('fa-reg', 'fonts/Font_Awesome_6_Free-Regular-400.otf')
+font_add('fa-brands', 'fonts/Font_Awesome_6_Brands-Regular-400.otf')
+font_add('fa-solid', 'fonts/Font_Awesome_6_Free-Solid-900.otf')
 font_add("Arial Narrow", "C:/Windows/Fonts/ARIALN.TTF")
 font_add_google("Roboto Condensed", "Roboto Condensed")
 
