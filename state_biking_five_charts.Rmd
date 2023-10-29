@@ -26,7 +26,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 
-Another year of commuting data from the American Community Survey (ACS) was released. This is an opportunity to look at the state of biking in 2022. Last year, I did a [deep dive into the ACS commuting data](https://haraldkliems.netlify.app/posts/latest-commute-mode-share-madison-2021/), as it was the first year that the data was released after the onset of the pandemic. And indeed: Huge changes in commuting, especially an explosion in working from home, could be seen. However, commuting is only one part of our transportation landscape, and this year my review will also look at several other indicators of the state of biking in Madison, as well as making comparisons with some other US cities and national trends.
+Another year of commuting data from the American Community Survey (ACS) was released. This is an opportunity to look at the state of biking in 2022. Last year I did a [deep dive into the ACS commuting data](https://haraldkliems.netlify.app/posts/latest-commute-mode-share-madison-2021/), as it was the first year that the data was released after the onset of the pandemic. And indeed: Huge changes in commuting, especially an explosion in working from home, could be seen. However, commuting is only one part of our transportation landscape, and this year my review will also look at several other indicators of the state of biking in Madison, as well as making comparisons with some other US cities and national trends.
 
 
 # Commuting data from ACS: Fewer people work from home; driving and transit usage are up
@@ -152,11 +152,11 @@ msn_mode_share |>
        caption = "American Community Survey 1-year estimates, Table S0801\nVisualization: Harald Kliems") 
 ```
 
-As always, when talking about ACS data, keep in mind that commuting is defined how the survey respondent "usually" got to work in the past week. Especially now that many workers are in hybrid work arrangements, there is additional uncertainty about the interpretation of the numbers.
+As always, when talking about ACS data, keep in mind that commuting is defined as how the survey respondent "usually" got to work in the past week. Especially now that many workers are in hybrid work arrangements, there is additional uncertainty about the interpretation of the numbers.
 
 # How does Madison compare to US-wide trends?
 
-If we look at change over time, it seems like a good idea to ask whether Madison is following a unique path. The following chart compares the Madison in Madison with that of the US as a whole:
+If we look at change over time, it seems like a good idea to ask whether Madison is following a unique path. The following chart compares commuting in Madison with the US as a whole:
 
 ```{r layout="l-page", fig.width=8, fig.asp = 0.618}
 get_national_mode_share <- function(year) {
@@ -228,6 +228,7 @@ combined |>
   facet_wrap(~location) +
   theme(legend.position = "none")
 ```
+
 A similar pattern emerges. While Madison commuters drive less, bike, walk, and bus more than the average US commuter, the trend over time looks similar. And that's true for the change from 2021 to 2022 as well: Just like in Madison, nationwide working from home went down, and driving and transit rebounded slightly. 
 
 # How are other cities doing?
@@ -389,7 +390,7 @@ rbind(counts2, counts_2022) |>
 These counts don't paint a rosy picture for biking either. Since the counters were installed, they have counted fewer and fewer people on bikes. While in 2016 we had almost one million counts, by 2022 that number has declined to less than 750,000.
 
 # Streetlight data
-The American Community Survey only counts commutes; the Eco Counters only count at two locations. Streetlight, a private company, promises to provide comprehensive counts for the whole metro area. They do this by using cell phone and other location data and applying various machine learning mechanisms to estimate bike trips. The data and algorithms are proprietary, and research published by Streetlight claims a high correlation between their data and validation counts from permanent bike counters.
+The American Community Survey only counts commutes; the Eco Counters only count at two locations. Streetlight, a private company, promises to provide comprehensive counts for the whole metro area. They do this by using cell phone and other location data and applying various machine learning mechanisms to estimate bike trips. The data and algorithms are proprietary, but research published by Streetlight claims a high correlation between their data and validation counts from permanent bike counters.
 
 In a recently released report, Streetlight [compares 100 US metro areas](https://learn.streetlightdata.com/ranking-us-bicycle-count-trends)^[Streelight appears to use metropolitan statistical areas. It's important to note that these are much larger than what most people imagine a metro area to be. In the case of Madison, the area [encompasses Dane, Columbia, Green and Iowa counties](https://en.wikipedia.org/wiki/Madison_metropolitan_area,_Wisconsin).] and how cycling activity has changed there compared to 2019, and then between 2020 and 2022. The idea is that during the COVID pandemic many US cities saw a surge in cycling, and now we have an opportunity to see if that surge was sustainable. In terms of growth from 2019 to 2020, the Madison metro area did _not_ see a surge: We ranked 86th out of 100 metro areas in terms of growth. And from 2020 to 2022, Madison fell even further, to 98th place, ahead only of Portland, OR, and Fresno, CA. 
 
